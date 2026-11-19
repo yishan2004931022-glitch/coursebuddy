@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ m.title }}{% endblock %}
+{% block content %}
+{% if config.DEMO_LOGIN %}
+<div class="flagbar">
+  <span class="flag {{ dq.variant }}">ai_quiz: {{ dq.variant|upper }}</span>
+  <span class="flag {{ dr.variant }}">spaced_reminder: {{ dr.variant|upper }}</span>
+  <span class="muted">（開發模式才顯示；原因：{{ dq.reason }}{% if dq.bucket is not none %}，bucket {{ dq.bucket }}{% endif %} / {{ dr.reason }}{% if dr.bucket is not none %}，bucket {{ dr.bucket }}{% endif %}）</span>
+</div>
+{% endif %}
+
+<div class="grid">
+  <section class="card">
+    <h1>{{ m.title }}</h1>
+    <p class="lecture">{{ m.text }}</p>
+  </section>
+
+  <div class="stack">
+    {# ---------- 功能 1：ai_quiz ---------- #}
+    {% if dq.on %}
+    <section class="card feature on" id="quiz">
+      <h2>AI 練習題 <span class="pill">NEW</span></h2>
+      {% if quiz %}
+        <ol class="quiz">
+        {% for q in quiz %}
+          <li>
+            <p>{{ q.question }}</p>
+            <ul class="opts">{% for o in q.options %}<li>{{ o }}</li>{% endfor %}</ul>
+            <details><summary>看答案</summary><strong>{{ q.answer }}</strong></details>
+            <form method="post" action="{{ url_for('main.quiz_report', mid=m.id) }}" class="inline">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+              <button class="link small">這題有誤？回報</button>
+            </form>
+          </li>
+        {% endfor %}
+        </ol>
+      {% else %}
+        <p>一鍵把這份講義變成 5 題選擇題。</p>
+        <form method="post" action="{{ url_for('main.quiz_page', mid=m.id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn primary">產生練習題</button>
+        </form>
+      {% endif %}
+    </section>
+    {% else %}
+    <section class="card feature off">
+      <h2>自己複習</h2>
+      <p>讀完講義後，標記一下已複習。</p>
+      <form method="post" action="{{ url_for('main.mark_reviewed', mid=m.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn">標記已複習</button>
+      </form>
+    </section>
+    {% endif %}
+
+    {# ---------- 功能 2：spaced_reminder（OFF 時整塊不出現） ---------- #}
+    {% if dr.on %}
+    <section class="card feature on">
+      <h2>複習提醒 <span class="pill">NEW</span></h2>
+      {% if m.reminders %}
+        <p>會在這幾天提醒你回來複習：</p>
+        <ul class="dates">{% for d in m.reminders %}<li>第 {{ (d - today).days }} 天 · {{ d.isoformat() }}</li>{% endfor %}</ul>
+        <form method="post" action="{{ url_for('main.cancel_reminders', mid=m.id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="link small">關閉提醒</button>
+        </form>
+      {% else %}
+        <p>依遺忘曲線，在第 1、3、7 天提醒你複習。</p>
+        <form method="post" action="{{ url_for('main.set_reminders', mid=m.id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button class="btn primary">加入複習排程</button>
+        </form>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

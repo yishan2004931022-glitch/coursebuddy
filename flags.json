@@ -1,0 +1,18 @@
+{
+  "ai_quiz": {
+    "description": "H1：上傳講義後由 AI 自動產生 5 題選擇題",
+    "enabled": true,
+    "rollout": 50,
+    "include_users": [],
+    "owner": "QA/Operator",
+    "expires": "2026-12-31"
+  },
+  "spaced_reminder": {
+    "description": "H2：依間隔重複在第 1、3、7 天提醒複習",
+    "enabled": true,
+    "rollout": 50,
+    "include_users": [],
+    "owner": "QA/Operator",
+    "expires": "2026-12-31"
+  }
+}

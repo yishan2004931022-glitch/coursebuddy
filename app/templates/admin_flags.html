@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Flag 控制台{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Feature Flag 控制台</h1>
+  <p class="muted">修改會寫回 flags.json，不需重啟服務即生效。直接編輯 flags.json 也一樣。</p>
+  <table>
+    <tr><th>Flag</th><th>說明</th><th>負責人</th><th>到期日</th><th>狀態</th><th>Rollout</th><th>Kill switch</th></tr>
+    {% for name, f in flags.items() %}
+    <tr>
+      <td><code>{{ name }}</code></td>
+      <td>{{ f.description }}</td>
+      <td>{{ f.owner }}</td>
+      <td class="{{ 'danger' if expired[name] }}">{{ f.expires }}{% if expired[name] %}（已過期，請移除）{% endif %}</td>
+      <td><span class="flag {{ 'on' if f.enabled else 'off' }}">{{ 'ENABLED' if f.enabled else 'KILLED' }}</span></td>
+      <td>
+        <form method="post" action="{{ url_for('main.admin_update_flag', name=name) }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="number" name="rollout" min="0" max="100" value="{{ f.rollout }}" class="num">%
+          <button class="btn small">更新</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('main.admin_update_flag', name=name) }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="enabled" value="{{ 'false' if f.enabled else 'true' }}">
+          <button class="btn small {{ 'danger' if f.enabled else 'primary' }}">{{ '關閉（全部 OFF）' if f.enabled else '重新啟用' }}</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+
+<section class="card">
+  <h2>各狀態監控</h2>
+  <table>
+    <tr><th>Flag</th><th>狀態</th><th>曝光</th><th>開始複習</th><th>回報題目有誤</th><th>加入提醒</th><th>關閉提醒</th><th>OFF 時被擋的 API 呼叫</th></tr>
+    {% for r in rows %}
+    <tr><td><code>{{ r.flag }}</code></td><td><span class="flag {{ r.variant }}">{{ r.variant|upper }}</span></td>
+      <td>{{ r.exposure }}</td><td>{{ r.practice }}</td><td>{{ r.quiz_reported }}</td>
+      <td>{{ r.reminder_set }}</td><td>{{ r.reminder_optout }}</td><td>{{ r.blocked }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}登入{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>登入</h1>
+  {% if google %}
+    <a class="btn primary" href="/auth/google">使用學校 Google 帳號登入</a>
+  {% endif %}
+  {% if demo %}
+    <p class="muted">開發模式：選一個示範帳號登入（正式環境會關閉）</p>
+    <div class="userlist">
+    {% for u in users %}
+      <form method="post" action="{{ url_for('main.login_post', next=request.args.get('next')) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="uid" value="{{ u.id }}">
+        <button class="btn">{{ u.name }} <em class="role role-{{ u.role }}">{{ u.role }}</em></button>
+      </form>
+    {% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

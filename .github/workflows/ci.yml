@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # 使用 GitHub Environment，可以替不同環境（staging / production）設定不同的 secrets 與審核規則
+    environment: ci
+    env:
+      APP_ENV: development
+      # 密鑰由 GitHub Secrets 注入，不寫在程式碼或這個檔案裡
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -v

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}課程統計{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{{ course }} · 課程統計</h1>
+  <p class="muted">只有這門課的助教和管理員看得到（伺服器端 ABAC 檢查）。</p>
+  <table>
+    <tr><th>官方講義</th><th>已排程提醒</th></tr>
+    {% for m in mats %}<tr><td>{{ m.title }}</td><td>{{ m.reminders|length }}</td></tr>{% endfor %}
+  </table>
+</section>
+{% endblock %}

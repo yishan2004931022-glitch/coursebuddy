@@ -1,0 +1,50 @@
+:root {
+  --bg: #f6f5f1; --card: #fff; --ink: #1f2328; --muted: #6b7280; --line: #e5e2da;
+  --accent: #2f5d50; --accent-ink: #fff; --on: #1f7a4d; --off: #9a3b3b; --warn: #b45309;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.6 "Noto Sans TC", "PingFang TC", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+.top { display: flex; justify-content: space-between; align-items: center; padding: 14px 28px; background: var(--card); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; color: var(--accent); text-decoration: none; font-size: 18px; }
+.brand span { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 6px; }
+nav { display: flex; gap: 16px; align-items: center; }
+nav a { color: var(--ink); text-decoration: none; }
+main { max-width: 1120px; margin: 24px auto; padding: 0 24px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; margin-bottom: 18px; }
+.card.narrow { max-width: 460px; margin: 40px auto; }
+h1 { font-size: 22px; margin: 0 0 12px; } h2 { font-size: 17px; margin: 0 0 10px; }
+.grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.stack > .card { margin-bottom: 0; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+input, textarea, select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; }
+.btn { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { background: var(--off); color: #fff; border-color: var(--off); }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.link { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; }
+.link.small { font-size: 13px; color: var(--muted); }
+.inline { display: inline; }
+.muted { color: var(--muted); font-size: 13px; }
+.role { font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #eef2f0; color: var(--accent); margin-left: 4px; }
+.role-admin { background: #fbeaea; color: var(--off); } .role-ta { background: #fdf3e2; color: var(--warn); }
+.userlist { display: grid; gap: 8px; } .userlist .btn { width: 100%; text-align: left; }
+.materials { list-style: none; padding: 0; margin: 0; } .materials li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.tag { font-size: 12px; margin-left: 8px; padding: 1px 7px; border-radius: 10px; background: #e7f0ec; color: var(--accent); }
+.tag.gray { background: #f0efeb; color: var(--muted); }
+.lecture { white-space: pre-wrap; }
+.flagbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.flag { font: 600 12px ui-monospace, monospace; padding: 3px 8px; border-radius: 4px; color: #fff; }
+.flag.on { background: var(--on); } .flag.off { background: var(--off); }
+.feature.on { border-left: 4px solid var(--on); } .feature.off { border-left: 4px solid #c9c5ba; }
+.pill { font-size: 11px; background: var(--on); color: #fff; padding: 1px 7px; border-radius: 10px; vertical-align: middle; }
+.quiz { padding-left: 20px; } .quiz > li { margin-bottom: 12px; } .quiz p { margin: 0 0 4px; }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; list-style: none; margin: 0 0 4px; }
+.opts li { border: 1px solid var(--line); border-radius: 5px; padding: 1px 8px; font-size: 13px; }
+.dates { padding-left: 18px; }
+.flash { background: #e7f0ec; border: 1px solid #c7ddd3; padding: 8px 14px; border-radius: 6px; margin-bottom: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; }
+td.danger { color: var(--off); font-weight: 600; }
+.num { width: 64px; }
