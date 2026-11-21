@@ -22,6 +22,13 @@ def create_app(config: dict | None = None) -> Flask:
         GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
         GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
         ALLOWED_EMAIL_DOMAIN=os.environ.get("ALLOWED_EMAIL_DOMAIN", ""),
+        # 上傳大小上限：超過時 Flask 直接回 413，不會把整個檔案讀進記憶體
+        MAX_CONTENT_LENGTH=int(os.environ.get("MAX_UPLOAD_MB", "10")) * 1024 * 1024,
+        # LLM 出題（任何 OpenAI 相容 API）。沒設定 key 或 model 就用規則式題目
+        LLM_API_KEY=os.environ.get("LLM_API_KEY"),
+        LLM_BASE_URL=os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1"),
+        LLM_MODEL=os.environ.get("LLM_MODEL"),
+        QUIZ_DAILY_LIMIT=int(os.environ.get("QUIZ_DAILY_LIMIT", "20")),  # 每人每天呼叫 LLM 次數上限
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=(env == "production"),
@@ -44,8 +51,9 @@ def create_app(config: dict | None = None) -> Flask:
     app.before_request(csrf_protect)
     app.jinja_env.globals["csrf_token"] = csrf_token
 
-    from .routes import bp
+    from .routes import bp, too_large
     app.register_blueprint(bp)
+    app.register_error_handler(413, too_large)
 
     if app.config["GOOGLE_ENABLED"]:
         from .google_auth import init_google

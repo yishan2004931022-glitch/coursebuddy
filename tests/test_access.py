@@ -125,3 +125,21 @@ def test_blocked_calls_are_counted(flags_path, app):
     write_flags(flags_path, quiz=(False, 100))
     As(app.test_client(), "alice").api(f"/api/materials/{OFFICIAL}/quiz")
     assert app.extensions["metrics"].get("ai_quiz", "off", "blocked") == 1
+
+
+# ---------- Open redirect ----------
+@pytest.mark.parametrize("nxt", ["https://evil.com", "//evil.com", "/\\evil.com", "javascript:alert(1)"])
+def test_login_next_cannot_redirect_offsite(client, nxt):
+    client.get("/login")
+    with client.session_transaction() as s:
+        token = s["csrf"]
+    r = client.post(f"/login?next={nxt}", data={"uid": "alice", "csrf": token})
+    assert r.status_code == 302 and r.headers["Location"] == "/"
+
+
+def test_login_next_keeps_internal_path(client):
+    client.get("/login")
+    with client.session_transaction() as s:
+        token = s["csrf"]
+    r = client.post("/login?next=/materials/1", data={"uid": "alice", "csrf": token})
+    assert r.headers["Location"] == "/materials/1"

@@ -12,7 +12,17 @@
 <div class="grid">
   <section class="card">
     <h1>{{ m.title }}</h1>
-    <p class="lecture">{{ m.text }}</p>
+    {% if m.filename %}<p class="muted small">📄 {{ m.filename }} · {{ m.pages|length }} 頁</p>{% endif %}
+    {% if m.pages|length > 1 %}
+      {% for p in m.pages %}
+      <details class="page" id="page-{{ loop.index }}" {% if loop.first %}open{% endif %}>
+        <summary>第 {{ loop.index }} 頁</summary>
+        <p class="lecture">{{ p or '（這頁沒有文字）' }}</p>
+      </details>
+      {% endfor %}
+    {% else %}
+      <p class="lecture">{{ m.text }}</p>
+    {% endif %}
   </section>
 
   <div class="stack">
@@ -21,12 +31,16 @@
     <section class="card feature on" id="quiz">
       <h2>AI 練習題 <span class="pill">NEW</span></h2>
       {% if quiz %}
+        <p class="muted small">{% if m.quiz_source == 'llm' %}由 AI 根據講義產生{% else %}示範題目（規則式挖空，未接 LLM）{% endif %}</p>
         <ol class="quiz">
         {% for q in quiz %}
           <li>
             <p>{{ q.question }}</p>
             <ul class="opts">{% for o in q.options %}<li>{{ o }}</li>{% endfor %}</ul>
-            <details><summary>看答案</summary><strong>{{ q.answer }}</strong></details>
+            <details><summary>看答案</summary><strong>{{ q.answer }}</strong>
+              {% if q.explanation %}<p class="small">{{ q.explanation }}</p>{% endif %}
+              {% if q.page and m.pages|length > 1 %}<p class="small"><a href="#page-{{ q.page }}">出自第 {{ q.page }} 頁</a></p>{% endif %}
+            </details>
             <form method="post" action="{{ url_for('main.quiz_report', mid=m.id) }}" class="inline">
               <input type="hidden" name="csrf" value="{{ csrf_token() }}">
               <button class="link small">這題有誤？回報</button>
@@ -35,7 +49,7 @@
         {% endfor %}
         </ol>
       {% else %}
-        <p>一鍵把這份講義變成 5 題選擇題。</p>
+        <p>一鍵把這份講義變成 5 題選擇題，並標出答案出自第幾頁。</p>
         <form method="post" action="{{ url_for('main.quiz_page', mid=m.id) }}">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
           <button class="btn primary">產生練習題</button>
@@ -75,4 +89,12 @@
     {% endif %}
   </div>
 </div>
+<script>
+  // 點「出自第 X 頁」時展開那一頁
+  function openPage() {
+    const el = location.hash.startsWith("#page-") && document.querySelector(location.hash);
+    if (el) { el.open = true; el.scrollIntoView({behavior: "smooth"}); }
+  }
+  window.addEventListener("hashchange", openPage); openPage();
+</script>
 {% endblock %}

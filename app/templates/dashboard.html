@@ -17,10 +17,17 @@
   </section>
   <section class="card">
     <h2>上傳講義</h2>
-    <form method="post" action="{{ url_for('main.create_material') }}" class="stack">
+    <form method="post" action="{{ url_for('main.create_material') }}" class="stack" enctype="multipart/form-data">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-      <label>標題 <input name="title" required></label>
-      <label>內容（先貼文字，之後支援 PDF）<textarea name="text" rows="6" required></textarea></label>
+      <label>講義 PDF
+        <input type="file" name="pdf" accept="application/pdf,.pdf">
+        <span class="muted small">上限 {{ config.MAX_CONTENT_LENGTH // (1024*1024) }} MB、60 頁；需為可選取文字的 PDF（掃描檔讀不到文字）</span>
+      </label>
+      <label>標題 <input name="title" maxlength="120" placeholder="留空就用檔名"></label>
+      <details>
+        <summary class="muted small">沒有 PDF？改貼文字</summary>
+        <textarea name="text" rows="6" placeholder="貼上講義內容"></textarea>
+      </details>
       {% if g.user.role == 'ta' %}
       <label>設為課程官方講義
         <select name="course_id"><option value="">（個人講義）</option>

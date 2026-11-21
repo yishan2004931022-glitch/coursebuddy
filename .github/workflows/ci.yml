@@ -18,6 +18,8 @@ jobs:
       # 密鑰由 GitHub Secrets 注入，不寫在程式碼或這個檔案裡
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      # 不是機密的設定放 Variables（Settings → Environments → ci → Variables）
+      LLM_MODEL: ${{ vars.LLM_MODEL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,3 +28,16 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -v
+
+  # SCA：每次 push / PR 都用 pip-audit 比對 PyPI 漏洞資料庫（OSV），有已知漏洞就讓 CI 失敗
+  # Dependabot 是「每週檢查 + 自動開 PR」，pip-audit 是「每次合併前擋下來」，兩者互補
+  sca:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit==2.10.1
+      - run: pip-audit -r requirements.txt --strict
+

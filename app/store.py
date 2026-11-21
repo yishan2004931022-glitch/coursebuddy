@@ -23,6 +23,14 @@ class Material:
     owner_id: str
     course_id: str | None = None   # 有值 = 課程官方講義（助教上傳）
     reminders: list[date] = field(default_factory=list)
+    pages: list[str] = field(default_factory=list)  # 每頁文字（PDF 上傳時才有多頁）
+    filename: str | None = None                     # 原始 PDF 檔名（檔案本身不保存）
+    quiz: list[dict] | None = None                  # 出題結果快取：同一份講義不重複呼叫 LLM
+    quiz_source: str | None = None                  # "llm" / "stub"
+
+    def __post_init__(self) -> None:
+        if not self.pages:
+            self.pages = [self.text]
 
 
 DEVOPS_SAMPLE = (
@@ -49,13 +57,17 @@ class Store:
         self.courses = {"devops": "DevOps 軟體開發與維運", "cloud": "雲端運算"}
         self._ids = itertools.count(1)
         self.materials: dict[int, Material] = {}
+        self.llm_usage: dict[tuple[str, date], int] = {}  # (user_id, 日期) → 今天呼叫 LLM 的次數
         self.add_material("HDD 與 Feature Toggles（官方講義）", DEVOPS_SAMPLE, "tina", "devops")
         self.add_material("Bob 的私人筆記", "Bob's private notes about Kubernetes pods and services.", "bob")
 
-    def add_material(self, title, text, owner_id, course_id=None) -> Material:
-        m = Material(next(self._ids), title, text, owner_id, course_id)
+    def add_material(self, title, text, owner_id, course_id=None,
+                     pages: list[str] | None = None, filename: str | None = None) -> Material:
+        m = Material(next(self._ids), title, text, owner_id, course_id,
+                     pages=list(pages or []), filename=filename)
         self.materials[m.id] = m
         return m
 
     def user_by_email(self, email: str) -> User | None:
-        return next((u for u in self.users.values() if u.email == email), None)
+        email = email.lower()
+        return next((u for u in self.users.values() if u.email.lower() == email), None)

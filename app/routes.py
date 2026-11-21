@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import os
 from datetime import date
+from urllib.parse import urlsplit
 
 from flask import (Blueprint, abort, current_app, flash, g, jsonify, redirect,
                    render_template, request, session, url_for)
 
 from .auth import (can_view_course_stats, can_view_material, csrf_token, feature_required,
                    login_required, role_required)
-from .features import generate_quiz, llm_configured, review_schedule
+from .features import llm_configured, make_quiz, review_schedule
+from .pdf_ingest import PDFError, extract_pages
 
 bp = Blueprint("main", __name__)
 
@@ -36,9 +39,45 @@ def get_material_or_403(mid: int):
     return m
 
 
-def _pop_quiz(mid: int):
-    data = session.pop("quiz", None)
-    return data["q"] if data and data.get("mid") == mid else None
+def _pop_quiz(m):
+    # session（cookie）只記「剛剛產生了哪份講義的題目」，題目本身存在伺服器端，避免 cookie 超過 4 KB
+    return m.quiz if session.pop("quiz_mid", None) == m.id else None
+
+
+def _safe_next(target: str | None) -> str:
+    """只允許站內相對路徑，防止 open redirect（/login?next=https://evil.com）。"""
+    if not target or not target.startswith("/") or target.startswith("//") or "\\" in target:
+        return url_for("main.dashboard")
+    parts = urlsplit(target)
+    return target if not parts.scheme and not parts.netloc else url_for("main.dashboard")
+
+
+class QuotaExceeded(Exception):
+    pass
+
+
+def get_or_make_quiz(m):
+    """同一份講義只出一次題（快取），LLM 呼叫計入每人每天的配額。"""
+    if m.quiz is not None:
+        return m.quiz, m.quiz_source
+    cfg = current_app.config
+    if llm_configured(cfg):
+        key = (g.user.id, date.today())
+        used = store().llm_usage.get(key, 0)
+        if used >= cfg["QUIZ_DAILY_LIMIT"]:
+            raise QuotaExceeded()
+        store().llm_usage[key] = used + 1
+    m.quiz, m.quiz_source = make_quiz(m.pages, cfg, seed=m.id)
+    return m.quiz, m.quiz_source
+
+
+def too_large(e):
+    """上傳超過 MAX_CONTENT_LENGTH。"""
+    limit = current_app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024)
+    if request.path.startswith("/api/"):
+        return jsonify(error=f"file too large (max {limit} MB)"), 413
+    flash(f"檔案太大，上限是 {limit} MB")
+    return redirect(url_for("main.dashboard"))
 
 
 # ---------------- 登入 ----------------
@@ -60,7 +99,7 @@ def login_post():
     session.clear()          # 防 session fixation：登入時換新 session
     session["uid"] = uid
     csrf_token()             # 新 session 產生新的 CSRF token
-    return redirect(request.args.get("next") or url_for("main.dashboard"))
+    return redirect(_safe_next(request.args.get("next")))
 
 
 @bp.post("/logout")
@@ -80,16 +119,36 @@ def dashboard():
 @bp.post("/materials")
 @login_required
 def create_material():
-    title = request.form.get("title", "").strip()
-    text = request.form.get("text", "").strip()
-    if not title or not text:
-        flash("標題和內容都要填")
-        return redirect(url_for("main.dashboard"))
     course_id = request.form.get("course_id") or None
-    # 只有助教能把講義設成某門課的官方講義，而且只能是自己帶的課
+    # 只有助教能把講義設成某門課的官方講義，而且只能是自己帶的課（先檢查權限再處理檔案）
     if course_id and not (g.user.role == "ta" and course_id in g.user.courses):
         abort(403)
-    m = store().add_material(title, text, g.user.id, course_id)
+
+    title = request.form.get("title", "").strip()[:120]
+    upload = request.files.get("pdf")
+    pages, filename = None, None
+    if upload and upload.filename:
+        # 檔名只拿來顯示，不拿來存檔，所以不會有 path traversal；仍去掉路徑、限制長度
+        filename = os.path.basename(upload.filename.replace("\\", "/"))[:120]
+        try:
+            pages = extract_pages(filename, upload.read())
+        except PDFError as e:
+            flash(str(e))
+            return redirect(url_for("main.dashboard"))
+        text = "\n".join(pages)
+        title = title or os.path.splitext(filename)[0]
+    else:
+        text = request.form.get("text", "").strip()
+        if not text:
+            flash("請上傳 PDF，或貼上講義文字")
+            return redirect(url_for("main.dashboard"))
+    if not title:
+        flash("請填寫標題")
+        return redirect(url_for("main.dashboard"))
+
+    m = store().add_material(title, text, g.user.id, course_id, pages=pages, filename=filename)
+    current_app.logger.info("material %s created by %s (%s, %d pages)",
+                            m.id, g.user.id, "pdf" if filename else "text", len(m.pages))
     return redirect(url_for("main.material", mid=m.id))
 
 
@@ -102,7 +161,7 @@ def material(mid):
     metrics().record(FLAG_QUIZ, dq.variant, "exposure")
     metrics().record(FLAG_REMIND, dr.variant, "exposure")
     return render_template("material.html", m=m, dq=dq, dr=dr,
-                           quiz=_pop_quiz(mid), today=date.today())
+                           quiz=_pop_quiz(m), today=date.today())
 
 
 @bp.post("/materials/<int:mid>/reviewed")
@@ -120,7 +179,12 @@ def mark_reviewed(mid):
 @feature_required(FLAG_QUIZ)
 def quiz_page(mid):
     m = get_material_or_403(mid)
-    session["quiz"] = {"mid": mid, "q": generate_quiz(m.text, seed=mid)}
+    try:
+        get_or_make_quiz(m)
+    except QuotaExceeded:
+        flash("今天的 AI 出題次數已用完，明天再來吧")
+        return redirect(url_for("main.material", mid=mid))
+    session["quiz_mid"] = mid
     metrics().record(FLAG_QUIZ, "on", "practice")
     return redirect(url_for("main.material", mid=mid) + "#quiz")
 
@@ -129,9 +193,12 @@ def quiz_page(mid):
 @feature_required(FLAG_QUIZ)
 def quiz_api(mid):
     m = get_material_or_403(mid)
+    try:
+        questions, source = get_or_make_quiz(m)
+    except QuotaExceeded:
+        return jsonify(error="daily quiz limit reached"), 429
     metrics().record(FLAG_QUIZ, "on", "practice")
-    return jsonify(material_id=mid, source="llm" if llm_configured() else "stub",
-                   questions=generate_quiz(m.text, seed=mid))
+    return jsonify(material_id=mid, source=source, questions=questions)
 
 
 @bp.post("/materials/<int:mid>/quiz/report")

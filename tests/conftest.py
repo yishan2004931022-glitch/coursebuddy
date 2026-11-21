@@ -25,7 +25,9 @@ def flags_path(tmp_path):
 
 @pytest.fixture
 def app(flags_path):
-    return create_app({"FLAGS_PATH": str(flags_path), "TESTING": True, "SECRET_KEY": "test"})
+    # LLM_API_KEY=None：就算 CI 有設定真的 key，測試也不會打真的 LLM（要測 LLM 的測試自己 mock）
+    return create_app({"FLAGS_PATH": str(flags_path), "TESTING": True, "SECRET_KEY": "test",
+                       "LLM_API_KEY": None, "LLM_MODEL": None})
 
 
 @pytest.fixture
@@ -58,6 +60,12 @@ class As:
 
     def api(self, url):
         return self.c.post(url, headers={"X-CSRF-Token": self.token})
+
+    def upload(self, filename, data, **fields):
+        """用 multipart/form-data 上傳檔案。"""
+        import io
+        form = {"csrf": self.token, "pdf": (io.BytesIO(data), filename), **fields}
+        return self.c.post("/materials", data=form, content_type="multipart/form-data")
 
 
 @pytest.fixture
